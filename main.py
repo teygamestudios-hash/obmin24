@@ -3,11 +3,12 @@ import uuid
 import os
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.filters import Command
+from aiogram.filters import Command, Text
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.client.bot import DefaultBotProperties
+from aiogram.filters.state import StateFilter
 from dotenv import load_dotenv
 
 # ===================== ENV =====================
@@ -100,20 +101,20 @@ async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer(f"👋 Привет, {message.from_user.full_name}!", reply_markup=main_menu("ru"))
 
 # ======== Добавление/изменение кошелька ========
-@dp.message(lambda m: m.text == LANG[user_lang.get(m.from_user.id,'ru')]["add_wallet"])
+@dp.message(Text(LANG["ru"]["add_wallet"], ignore_case=True))
 async def add_wallet_start(message: types.Message, state: FSMContext):
     await state.set_state(DealStates.waiting_wallet)
     await message.answer("Введите ваш TON-кошелек:")
 
-@dp.message(lambda m: True, state=DealStates.waiting_wallet)
+@dp.message(StateFilter(DealStates.waiting_wallet))
 async def add_wallet_save(message: types.Message, state: FSMContext):
     user_wallet[message.from_user.id] = message.text
-    lang = user_lang.get(message.from_user.id,'ru')
+    lang = user_lang.get(message.from_user.id, 'ru')
     await message.answer(LANG[lang]["wallet_saved"], reply_markup=main_menu(lang))
     await state.clear()
 
 # ======== Новая сделка ========
-@dp.message(lambda m: m.text == LANG[user_lang.get(m.from_user.id,'ru')]["new_deal"])
+@dp.message(Text(LANG["ru"]["new_deal"], ignore_case=True))
 async def new_deal(message: types.Message, state: FSMContext):
     lang = user_lang.get(message.from_user.id,'ru')
     if message.from_user.id not in user_wallet:
@@ -122,14 +123,14 @@ async def new_deal(message: types.Message, state: FSMContext):
     await message.answer(LANG[lang]["enter_amount"])
     await state.set_state(DealStates.waiting_amount)
 
-@dp.message(DealStates.waiting_amount)
+@dp.message(StateFilter(DealStates.waiting_amount))
 async def deal_amount(message: types.Message, state: FSMContext):
     await state.update_data(amount=message.text)
     lang = user_lang.get(message.from_user.id,'ru')
     await message.answer(LANG[lang]["enter_description"])
     await state.set_state(DealStates.waiting_description)
 
-@dp.message(DealStates.waiting_description)
+@dp.message(StateFilter(DealStates.waiting_description))
 async def deal_description(message: types.Message, state: FSMContext):
     data = await state.get_data()
     amount = data.get("amount")
@@ -146,14 +147,14 @@ async def deal_description(message: types.Message, state: FSMContext):
     await state.clear()
 
 # ======== Реферальная ссылка ========
-@dp.message(lambda m: m.text == LANG[user_lang.get(m.from_user.id,'ru')]["referral"])
+@dp.message(Text(LANG["ru"]["referral"], ignore_case=True))
 async def referral(message: types.Message):
     lang = user_lang.get(message.from_user.id,'ru')
     ref_link = f"https://t.me/OBMIN24_bot?start={message.from_user.id}"
     await message.answer(f"{LANG[lang]['referral']}\n{ref_link}")
 
 # ======== Смена языка ========
-@dp.message(lambda m: m.text == LANG[user_lang.get(m.from_user.id,'ru')]["change_lang"])
+@dp.message(Text(LANG["ru"]["change_lang"], ignore_case=True))
 async def change_lang(message: types.Message):
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
     kb.add(KeyboardButton("🇷🇺 Русский"))
@@ -161,7 +162,7 @@ async def change_lang(message: types.Message):
     kb.add(KeyboardButton("🇬🇧 English"))
     await message.answer("Выберите язык / Оберіть мову / Choose language:", reply_markup=kb)
 
-@dp.message(lambda m: m.text in ["🇷🇺 Русский","🇺🇦 Українська","🇬🇧 English"])
+@dp.message(Text(["🇷🇺 Русский","🇺🇦 Українська","🇬🇧 English"]))
 async def set_lang(message: types.Message):
     if message.text == "🇷🇺 Русский":
         user_lang[message.from_user.id] = "ru"
@@ -173,7 +174,7 @@ async def set_lang(message: types.Message):
     await message.answer("✅ Язык изменен!", reply_markup=main_menu(lang))
 
 # ======== Поддержка ========
-@dp.message(lambda m: m.text == LANG[user_lang.get(m.from_user.id,'ru')]["support"])
+@dp.message(Text(LANG["ru"]["support"], ignore_case=True))
 async def support(message: types.Message):
     await message.answer("🆘 Поддержка: @obmin24supporter_bot")
 
