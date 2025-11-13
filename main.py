@@ -11,7 +11,7 @@ import os
 
 load_dotenv()
 
-BOT_TOKEN = os.getenv("8356659017:AAH9XYruZnGqtIqmhjxoHpJwd00zm-RmTo0")
+BOT_TOKEN = os.getenv("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN, parse_mode="HTML")
 dp = Dispatcher(storage=MemoryStorage())
 
