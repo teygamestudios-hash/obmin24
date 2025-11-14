@@ -2,12 +2,13 @@ import asyncio
 import uuid
 import os
 from aiogram import Bot, Dispatcher, types, F
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.storage.memory import MemoryStorage
-from dotenv import load_dotenv
 from aiogram.client.bot import DefaultBotProperties
+from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from dotenv import load_dotenv
 
 # ===================== ENV =====================
 load_dotenv()
@@ -18,10 +19,9 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
 dp = Dispatcher(storage=MemoryStorage())
 
-# ===================== Локализация =====================
+# ===================== Локали =====================
 LANG = {
     "ru": {
-        "main_menu": "Главное меню",
         "new_deal": "Новая сделка",
         "add_wallet": "Добавить/Изменить кошелек",
         "referral": "Реферальная ссылка",
@@ -45,36 +45,37 @@ class DealStates(StatesGroup):
 user_lang = {}
 user_wallet = {}
 
-# ===================== RAW Клавиатуры =====================
+# ===================== Клавиатуры =====================
 def main_menu(lang="ru"):
-    return {
-        "keyboard": [
-            [{"text": LANG[lang]["new_deal"]}],
-            [{"text": LANG[lang]["add_wallet"]}],
-            [{"text": LANG[lang]["referral"]}],
-            [{"text": LANG[lang]["change_lang"]}],
-            [{"text": LANG[lang]["support"]}],
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text=LANG[lang]["new_deal"])],
+            [KeyboardButton(text=LANG[lang]["add_wallet"])],
+            [KeyboardButton(text=LANG[lang]["referral"])],
+            [KeyboardButton(text=LANG[lang]["change_lang"])],
+            [KeyboardButton(text=LANG[lang]["support"])],
         ],
-        "resize_keyboard": True
-    }
+        resize_keyboard=True
+    )
 
 def lang_menu():
-    return {
-        "keyboard": [
-            [{"text": "🇷🇺 Русский"}],
-            [{"text": "🇺🇦 Українська"}],
-            [{"text": "🇬🇧 English"}],
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🇷🇺 Русский")],
+            [KeyboardButton(text="🇺🇦 Українська")],
+            [KeyboardButton(text="🇬🇧 English")],
         ],
-        "resize_keyboard": True
-    }
+        resize_keyboard=True
+    )
 
-# ===================== Хендлеры =====================
+# ===================== START =====================
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message, state: FSMContext):
     user_lang[message.from_user.id] = "ru"
     await message.answer("👋 Привет!", reply_markup=main_menu("ru"))
 
-@dp.message(F.text)
+# ===================== ГЛАВНОЕ МЕНЮ =====================
+@dp.message(StateFilter(None), F.text)
 async def menu_router(message: types.Message, state: FSMContext):
     uid = message.from_user.id
     lang = user_lang.get(uid, "ru")
@@ -95,7 +96,17 @@ async def menu_router(message: types.Message, state: FSMContext):
         await message.answer("Введите ваш TON-кошелек:")
         return
 
-    # ===== Язык =====
+    # ===== Рефералка =====
+    if text == LANG[lang]["referral"]:
+        await message.answer(f"https://t.me/OBMIN24_bot?start={uid}")
+        return
+
+    # ===== Поддержка =====
+    if text == LANG[lang]["support"]:
+        await message.answer("🆘 Поддержка: @obmin24supporter_bot")
+        return
+
+    # ===== Смена языка =====
     if text == LANG[lang]["change_lang"]:
         await message.answer("Выберите язык:", reply_markup=lang_menu())
         return
@@ -106,30 +117,21 @@ async def menu_router(message: types.Message, state: FSMContext):
         await message.answer("Язык переключен.", reply_markup=main_menu("ru"))
         return
 
-    # ===== Поддержка =====
-    if text == LANG[lang]["support"]:
-        await message.answer("🆘 Поддержка: @obmin24supporter_bot")
-        return
-
-    # ===== Рефералка =====
-    if text == LANG[lang]["referral"]:
-        ref = f"https://t.me/OBMIN24_bot?start={uid}"
-        await message.answer(ref)
-        return
-
-# ===================== FSM Хендлеры =====================
+# ===================== FSM — WALLET =====================
 @dp.message(DealStates.waiting_wallet)
 async def save_wallet(message: types.Message, state: FSMContext):
     user_wallet[message.from_user.id] = message.text
     await message.answer("Готово ✓", reply_markup=main_menu())
     await state.clear()
 
+# ===================== FSM — AMOUNT =====================
 @dp.message(DealStates.waiting_amount)
 async def deal_amount(message: types.Message, state: FSMContext):
     await state.update_data(amount=message.text)
     await state.set_state(DealStates.waiting_description)
     await message.answer(LANG["ru"]["enter_description"])
 
+# ===================== FSM — DESCRIPTION =====================
 @dp.message(DealStates.waiting_description)
 async def deal_description(message: types.Message, state: FSMContext):
     data = await state.get_data()
