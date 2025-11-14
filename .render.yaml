@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: obmin24
+    env: python
+    buildCommand: "pip install --upgrade pip && pip install -r requirements.txt"
+    startCommand: "python main.py"
+    plan: free
